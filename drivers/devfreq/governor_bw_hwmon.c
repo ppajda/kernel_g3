@@ -14,6 +14,7 @@
 #define pr_fmt(fmt) "bw-hwmon: " fmt
 
 #include <linux/kernel.h>
+#include <linux/sizes.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -27,7 +28,6 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/devfreq.h>
-#include <asm-generic/sizes.h>
 #include "governor.h"
 #include "governor_bw_hwmon.h"
 
@@ -151,7 +151,8 @@ static struct hwmon_node *find_hwmon_node(struct devfreq *df)
 	list_for_each_entry(node, &hwmon_list, list)
 		if (node->hw->dev == df->dev.parent ||
 		    node->hw->of_node == df->dev.parent->of_node ||
-		    node->gov == df->governor) {
+		    (!node->hw->dev && !node->hw->of_node &&
+		     node->gov == df->governor)) {
 			found = node;
 			break;
 		}
@@ -549,3 +550,4 @@ int register_bw_hwmon(struct device *dev, struct bw_hwmon *hwmon)
 
 MODULE_DESCRIPTION("HW monitor based dev DDR bandwidth voting driver");
 MODULE_LICENSE("GPL v2");
+

@@ -74,3 +74,4 @@ int update_bw_hwmon(struct bw_hwmon *hwmon)
 #endif
 
 #endif /* _GOVERNOR_BW_HWMON_H */
+

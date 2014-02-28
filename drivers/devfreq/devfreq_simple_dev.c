@@ -211,3 +211,4 @@ module_exit(devfreq_clock_exit);
 
 MODULE_DESCRIPTION("Devfreq driver for setting generic device clock frequency");
 MODULE_LICENSE("GPL v2");
+
