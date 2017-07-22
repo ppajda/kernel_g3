@@ -1,0 +1,7 @@
+config INTELLI_HOTPLUG
+	bool "Intelli hotplug driver"
+	default y
+	help
+	  An intelligent cpu hotplug driver for
+	  Low Latency Frequency Transition capable processors.
+
