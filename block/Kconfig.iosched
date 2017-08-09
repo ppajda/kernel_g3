@@ -43,6 +43,10 @@ config IOSCHED_ROW
 	  according to queue priority.
 	  Most suitable for mobile devices.
 
+config IOSCHED_MAPLE
+	tristate "Maple I/O scheduler"
+	default y
+
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
 	# If BLK_CGROUP is a module, CFQ has to be built as module.
@@ -89,7 +93,7 @@ config CGROUP_BFQIO
 
 choice
 	prompt "Default I/O scheduler"
-	default DEFAULT_CFQ
+	default DEFAULT_MAPLE
 	help
 	  Select the I/O scheduler which will be used by default for all
 	  block devices.
@@ -109,6 +113,9 @@ choice
 
 	config DEFAULT_CFQ
 		bool "CFQ" if IOSCHED_CFQ=y
+
+	config DEFAULT_MAPLE
+		bool "Maple" if IOSCHED_MAPLE=y
 
 	config DEFAULT_BFQ
 		bool "BFQ" if IOSCHED_BFQ=y
