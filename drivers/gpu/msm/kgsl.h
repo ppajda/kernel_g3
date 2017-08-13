@@ -163,6 +163,7 @@ struct kgsl_memdesc {
 	unsigned int sglen_alloc;  /* Allocated entries in the sglist */
 	struct kgsl_memdesc_ops *ops;
 	unsigned int flags; /* Flags set from userspace */
+	struct device *dev;
 };
 
 /* List of different memory entry types */
@@ -200,7 +201,6 @@ int kgsl_cmdbatch_add_memobj(struct kgsl_cmdbatch *cmdbatch,
 			struct kgsl_ibdesc *ibdesc);
 
 void kgsl_mem_entry_destroy(struct kref *kref);
-int kgsl_postmortem_dump(struct kgsl_device *device, int manual);
 
 struct kgsl_mem_entry *kgsl_get_mem_entry(struct kgsl_device *device,
 		phys_addr_t ptbase, unsigned int gpuaddr, unsigned int size);

@@ -1199,16 +1199,12 @@ static int dispatcher_do_fault(struct kgsl_device *device)
 	adreno_readreg(adreno_dev, ADRENO_REG_CP_IB1_BASE, &base);
 
 	/*
-	 * Dump the postmortem and snapshot information if this is the first
+	 * Dump the snapshot information if this is the first
 	 * detected fault for the oldest active command batch
 	 */
 
 	if (!test_bit(KGSL_FT_SKIP_PMDUMP, &cmdbatch->fault_policy)) {
 		adreno_fault_header(device, cmdbatch);
-
-		if (device->pm_dump_enable)
-			kgsl_postmortem_dump(device, 0);
-
 		kgsl_device_snapshot(device, 1);
 	}
 
@@ -1666,9 +1662,7 @@ static void adreno_dispatcher_work(struct work_struct *work)
 	 * stragglers
 	 */
 	if (dispatcher->inflight == 0 && count) {
-		kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
 		queue_work(device->work_queue, &device->event_work);
-		kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
 	}
 
 	/* Dispatch new commands if we have the room */
@@ -1686,7 +1680,9 @@ done:
 
 		/* There are still things in flight - update the idle counts */
 		kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
-		kgsl_pwrscale_idle(device);
+		kgsl_pwrscale_update(device);
+		mod_timer(&device->idle_timer, jiffies +
+				device->pwrctrl.interval_timeout);
 		kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
 	} else {
 		/* There is nothing left in the pipeline.  Shut 'er down boys */
@@ -1705,11 +1701,6 @@ done:
 
 		kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
 	}
-
-	/* Before leaving update the pwrscale information */
-	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
-	kgsl_pwrscale_idle(device);
-	kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
 
 	mutex_unlock(&dispatcher->mutex);
 }
@@ -1883,9 +1874,10 @@ static ssize_t _store_uint(struct adreno_dispatcher *dispatcher,
 		struct dispatcher_attribute *attr,
 		const char *buf, size_t size)
 {
-	unsigned long val;
-	int ret = kstrtoul(buf, 0, &val);
+	unsigned int val = 0;
+	int ret;
 
+	ret = kgsl_sysfs_store(buf, &val);
 	if (ret)
 		return ret;
 
@@ -1900,7 +1892,7 @@ static ssize_t _show_uint(struct adreno_dispatcher *dispatcher,
 		struct dispatcher_attribute *attr,
 		char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n",
+	return snprintf(buf, PAGE_SIZE, "%u\n",
 		*((unsigned int *) attr->value));
 }
 

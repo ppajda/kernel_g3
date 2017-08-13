@@ -30,6 +30,7 @@
 #include <mach/socinfo.h>
 #include <linux/mman.h>
 #include <linux/sort.h>
+#include <linux/security.h>
 #include <asm/cacheflush.h>
 
 #include "kgsl.h"
@@ -56,6 +57,12 @@ static int kgsl_pagetable_count = KGSL_PAGETABLE_COUNT;
  * them so frequently
  */
 static struct kmem_cache *memobjs_cache;
+
+#ifdef CONFIG_ARM_LPAE
+#define KGSL_DMA_BIT_MASK	DMA_BIT_MASK(64)
+#else
+#define KGSL_DMA_BIT_MASK	DMA_BIT_MASK(32)
+#endif
 
 static char *ksgl_mmu_type;
 module_param_named(ptcount, kgsl_pagetable_count, int, 0);
@@ -1310,6 +1317,8 @@ kgsl_sharedmem_find(struct kgsl_process_private *private, unsigned int gpuaddr)
  * @private: private data for the process to check.
  * @gpuaddr: start address of the region
  * @size: length of the region.
+ * @collision_entry: Returns pointer to the colliding memory entry,
+ * caller's responsibility to take a refcount on this entry
  *
  * Checks that there are no existing allocations within an address
  * region. This function should be called with processes spin lock
@@ -1317,7 +1326,8 @@ kgsl_sharedmem_find(struct kgsl_process_private *private, unsigned int gpuaddr)
  */
 static int
 kgsl_sharedmem_region_empty(struct kgsl_process_private *private,
-	unsigned int gpuaddr, size_t size)
+	unsigned int gpuaddr, size_t size,
+	struct kgsl_mem_entry **collision_entry)
 {
 	int result = 1;
 	unsigned int gpuaddr_end = gpuaddr + size;
@@ -1349,6 +1359,8 @@ kgsl_sharedmem_region_empty(struct kgsl_process_private *private,
 		else if (memdesc_end <= gpuaddr)
 			node = node->rb_right;
 		else {
+			if (collision_entry)
+				*collision_entry = entry;
 			result = 0;
 			break;
 		}
@@ -3090,7 +3102,7 @@ static long kgsl_ioctl_map_user_mem(struct kgsl_device_private *dev_priv,
 			| KGSL_MEMFLAGS_USE_CPU_MAP;
 
 	entry->memdesc.flags = param->flags;
-	if (!kgsl_mmu_use_cpu_map(private->pagetable->mmu))
+	if (!kgsl_mmu_use_cpu_map(&dev_priv->device->mmu))
 		entry->memdesc.flags &= ~KGSL_MEMFLAGS_USE_CPU_MAP;
 
 	if (kgsl_mmu_get_mmutype() == KGSL_MMU_TYPE_IOMMU)
@@ -3431,8 +3443,8 @@ _gpumem_alloc(struct kgsl_device_private *dev_priv,
 	if (kgsl_mmu_get_mmutype() == KGSL_MMU_TYPE_IOMMU)
 		entry->memdesc.priv |= KGSL_MEMDESC_GUARD_PAGE;
 
-	result = kgsl_allocate_user(&entry->memdesc, private->pagetable, size,
-				    flags);
+	result = kgsl_allocate_user(dev_priv->device, &entry->memdesc,
+				private->pagetable, size, flags);
 	if (result != 0)
 		goto err;
 
@@ -3487,11 +3499,12 @@ kgsl_ioctl_gpumem_alloc_id(struct kgsl_device_private *dev_priv,
 			unsigned int cmd, void *data)
 {
 	struct kgsl_process_private *private = dev_priv->process_priv;
+	struct kgsl_device *device = dev_priv->device;
 	struct kgsl_gpumem_alloc_id *param = data;
 	struct kgsl_mem_entry *entry = NULL;
 	int result;
 
-	if (!kgsl_mmu_use_cpu_map(private->pagetable->mmu))
+	if (!kgsl_mmu_use_cpu_map(&device->mmu))
 		param->flags &= ~KGSL_MEMFLAGS_USE_CPU_MAP;
 
 	result = _gpumem_alloc(dev_priv, &entry, param->size, param->flags);
@@ -4063,7 +4076,7 @@ kgsl_get_unmapped_area(struct file *file, unsigned long addr,
 
 		/*make sure there isn't a GPU only mapping at this address */
 		spin_lock(&private->mem_lock);
-		if (kgsl_sharedmem_region_empty(private, ret, orig_len)) {
+		if (kgsl_sharedmem_region_empty(private, ret, orig_len, NULL)) {
 			int ret_val;
 			/*
 			 * We found a free memory map, claim it here with
@@ -4418,7 +4431,12 @@ int kgsl_device_platform_probe(struct kgsl_device *device)
 		goto error_dest_work_q;
 	}
 
-	status = kgsl_allocate_contiguous(&device->memstore,
+	/* Check to see if our device can perform DMA correctly */
+	status = dma_set_coherent_mask(&pdev->dev, KGSL_DMA_BIT_MASK);
+	if (status)
+		goto error_close_mmu;
+
+	status = kgsl_allocate_contiguous(device, &device->memstore,
 		KGSL_MEMSTORE_SIZE);
 
 	if (status != 0) {
@@ -4457,67 +4475,6 @@ error:
 	return status;
 }
 EXPORT_SYMBOL(kgsl_device_platform_probe);
-
-int kgsl_postmortem_dump(struct kgsl_device *device, int manual)
-{
-	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
-
-	BUG_ON(device == NULL);
-
-	kgsl_cffdump_hang(device);
-
-	/* For a manual dump, make sure that the system is idle */
-
-	if (manual) {
-		kgsl_active_count_wait(device, 0);
-
-		if (device->state == KGSL_STATE_ACTIVE)
-			kgsl_idle(device);
-	}
-
-	if (device->pm_dump_enable) {
-
-		KGSL_LOG_DUMP(device,
-			"POWER: START_STOP_SLEEP_WAKE = %d\n",
-			pwr->strtstp_sleepwake);
-
-		KGSL_LOG_DUMP(device,
-			"POWER: FLAGS = %08lX | ACTIVE POWERLEVEL = %08X",
-			pwr->power_flags, pwr->active_pwrlevel);
-
-		KGSL_LOG_DUMP(device, "POWER: INTERVAL TIMEOUT = %08X ",
-				pwr->interval_timeout);
-
-	}
-
-	/* Disable the idle timer so we don't get interrupted */
-	del_timer_sync(&device->idle_timer);
-
-	/* Force on the clocks */
-	kgsl_pwrctrl_wake(device, 0);
-
-	/* Disable the irq */
-	kgsl_pwrctrl_irq(device, KGSL_PWRFLAGS_OFF);
-
-	/*Call the device specific postmortem dump function*/
-	device->ftbl->postmortem_dump(device, manual);
-
-	/* On a manual trigger, turn on the interrupts and put
-	   the clocks to sleep.  They will recover themselves
-	   on the next event.  For a hang, leave things as they
-	   are until fault tolerance kicks in. */
-
-	if (manual) {
-		kgsl_pwrctrl_irq(device, KGSL_PWRFLAGS_ON);
-
-		/* try to go into a sleep mode until the next event */
-		kgsl_pwrctrl_request_state(device, KGSL_STATE_SLEEP);
-		kgsl_pwrctrl_sleep(device);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(kgsl_postmortem_dump);
 
 void kgsl_device_platform_remove(struct kgsl_device *device)
 {
@@ -4671,6 +4628,8 @@ static int __init kgsl_core_init(void)
 	kgsl_memfree_init();
 
 	kgsl_events_init();
+
+	kgsl_heap_init();
 
 	return 0;
 

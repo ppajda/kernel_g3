@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,8 +17,8 @@
 #include <linux/devfreq.h>
 #include <linux/msm_adreno_devfreq.h>
 
-/* devfreq governor call window in msec */
-#define KGSL_GOVERNOR_CALL_INTERVAL 5
+/* devfreq governor call window in usec */
+#define KGSL_GOVERNOR_CALL_INTERVAL 10000
 
 struct kgsl_power_stats {
 	u64 busy_time;
@@ -33,22 +33,22 @@ struct kgsl_pwrscale {
 	char last_governor[DEVFREQ_NAME_LEN];
 	struct kgsl_power_stats accum_stats;
 	bool enabled;
-	s64 time;
+	ktime_t time;
 	s64 on_time;
 	struct srcu_notifier_head nh;
 	struct workqueue_struct *devfreq_wq;
 	struct work_struct devfreq_suspend_ws;
 	struct work_struct devfreq_resume_ws;
 	struct work_struct devfreq_notify_ws;
-	unsigned long next_governor_call;
+	ktime_t next_governor_call;
 };
 
 int kgsl_pwrscale_init(struct device *dev, const char *governor);
 void kgsl_pwrscale_close(struct kgsl_device *device);
 
 void kgsl_pwrscale_update(struct kgsl_device *device);
+void kgsl_pwrscale_update_stats(struct kgsl_device *device);
 void kgsl_pwrscale_busy(struct kgsl_device *device);
-void kgsl_pwrscale_idle(struct kgsl_device *device);
 void kgsl_pwrscale_sleep(struct kgsl_device *device);
 void kgsl_pwrscale_wake(struct kgsl_device *device);
 
