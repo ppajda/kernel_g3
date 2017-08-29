@@ -110,14 +110,12 @@ config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 	  'interactive' governor for latency-sensitive workloads.
 
 config CPU_FREQ_DEFAULT_GOV_PEGASUSQ
-    default y
 	bool "pegasusq"
 	select CPU_FREQ_GOV_PEGASUSQ
 	help
 	  Use the CPUFreq governor 'pegasusq' as default.
 
 config CPU_FREQ_DEFAULT_GOV_ZZMOOVE
-      default y
 	  bool "zzmoove"
 	  select CPU_FREQ_GOV_ZZMOOVE
 	  select CPU_FREQ_GOV_PERFORMANCE
@@ -127,13 +125,11 @@ config CPU_FREQ_DEFAULT_GOV_ZZMOOVE
 	  % frequency steps to get smooth up/downscaling dependant on CPU load.
 
 config CPU_FREQ_DEFAULT_GOV_ALUCARD
-    default y
 	bool "alucard"
 	select CPU_FREQ_GOV_ALUCARD
 	help
 
 config CPU_FREQ_DEFAULT_GOV_INTELLIMM
-    default y
 	bool "intelliminmax"
 	select CPU_FREQ_GOV_INTELLIMM
 	help
