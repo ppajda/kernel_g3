@@ -18,4 +18,3 @@ int state_unregister_client(struct notifier_block *nb);
 int state_notifier_call_chain(unsigned long val, void *v);
 
 #endif /* _LINUX_STATE_NOTIFIER_H */
-

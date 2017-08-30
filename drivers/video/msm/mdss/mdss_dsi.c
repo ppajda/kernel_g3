@@ -21,9 +21,12 @@
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/regulator/consumer.h>
+
 #ifdef CONFIG_STATE_NOTIFIER
 #include <linux/state_notifier.h>
+bool scr_suspended;
 #endif
+
 #include "mdss.h"
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
@@ -1209,8 +1212,10 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		if (ctrl_pdata->on_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_unblank(pdata);
 #ifdef CONFIG_STATE_NOTIFIER
-		if (!use_fb_notifier)
-			state_notifier_call_chain(STATE_NOTIFIER_ACTIVE, NULL);
+#ifdef CONFIG_TOUCHSCREEN_SWEEP2WAKE
+		scr_suspended = false;
+#endif
+		state_resume();
 #endif
 		break;
 	case MDSS_EVENT_BLANK:
@@ -1223,8 +1228,10 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 			rc = mdss_dsi_blank(pdata);
 		rc = mdss_dsi_off(pdata);
 #ifdef CONFIG_STATE_NOTIFIER
-		if (!use_fb_notifier)
-			state_notifier_call_chain(STATE_NOTIFIER_SUSPEND, NULL);
+#ifdef CONFIG_TOUCHSCREEN_SWEEP2WAKE
+		scr_suspended = true;
+#endif
+		state_suspend();
 #endif
 		break;
 	case MDSS_EVENT_CONT_SPLASH_FINISH:
@@ -1964,3 +1971,4 @@ module_exit(mdss_dsi_driver_cleanup);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DSI controller driver");
 MODULE_AUTHOR("Chandan Uddaraju <chandanu@codeaurora.org>");
+
