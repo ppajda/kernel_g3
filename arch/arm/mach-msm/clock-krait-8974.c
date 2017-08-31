@@ -37,7 +37,11 @@
 
 #ifdef CONFIG_PVS_LEVEL_INTERFACE
 int pvs_level = -1;
-module_param(pvs_level, int, S_IRUGO);
+module_param(pvs_level, int, S_IRUGO); 
+#endif
+#ifdef CONFIG_SPEED_LEVEL_INTERFACE
+int speed_level = -1;
+module_param(speed_level, int, S_IRUGO);
 #endif
 
 /* Clock inputs coming into Krait subsystem */
@@ -423,11 +427,12 @@ static struct clk *cpu_clk[] = {
 };
 
 static void get_krait_bin_format_b(struct platform_device *pdev,
-					int *speed, int *pvs, int *pvs_ver)
+					int *speed, int *pvs, int *svs_pvs, int *pvs_ver)
 {
 	u32 pte_efuse, redundant_sel;
 	struct resource *res;
 	void __iomem *base;
+	void __iomem *base_svs;
 
 	*speed = 0;
 	*pvs = 0;
@@ -469,6 +474,33 @@ static void get_krait_bin_format_b(struct platform_device *pdev,
 	} else {
 		dev_warn(&pdev->dev, "Speed bin not set. Defaulting to 0!\n");
 		*speed = 0;
+	}
+
+#ifdef CONFIG_SPEED_LEVEL_INTERFACE
+        speed_level = *speed;
+#endif
+
+	/* Check SVS PVS bin */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "efuse_svs");
+	if (res) {
+		base_svs = devm_ioremap(&pdev->dev, res->start,
+					resource_size(res));
+		/* Read the svs pvs value if status bit 28 is valid (set) */
+		if (!base_svs) {
+			*svs_pvs = 0;
+			dev_warn(&pdev->dev,
+			 "Unable to read svs efuse data. Defaulting to 0!\n");
+		} else {
+			pte_efuse = readl_relaxed(base_svs);
+			/*
+			 * Read the svs pvs value if status bit 28 is valid
+			 * 4 bits of SVS PVS are in efuse register bits 27-24
+			 */
+			if (pte_efuse & BIT(28))
+				*svs_pvs = (pte_efuse >> 24) & 0xF;
+
+			devm_iounmap(&pdev->dev, base_svs);
+		}
 	}
 
 	/* Check PVS_BLOW_STATUS */
@@ -606,11 +638,9 @@ module_param(pvs_config_ver, uint, S_IRUGO);
 #ifdef CONFIG_CPU_VOLTAGE_TABLE
 
 #define CPU_VDD_MIN	 600
-#define CPU_VDD_MAX	1450
+#define CPU_VDD_MAX	1250
 
 extern bool is_used_by_scaling(unsigned int freq);
-
-static unsigned int cnt;
 
 ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 {
@@ -637,8 +667,7 @@ ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 	return len;
 }
 
-ssize_t store_UV_mV_table(struct cpufreq_policy *policy, char *buf,
-				size_t count)
+ssize_t store_UV_mV_table(struct cpufreq_policy *policy, char *buf, size_t count)
 {
 	int i, j;
 	int ret = 0;
@@ -647,14 +676,9 @@ ssize_t store_UV_mV_table(struct cpufreq_policy *policy, char *buf,
 	/* use only master core 0 */
 	int num_levels = cpu_clk[0]->vdd_class->num_levels;
 
-	if (cnt) {
-		cnt = 0;
-		return -EINVAL;
-	}
-
 	/* sanity checks */
 	if (num_levels < 0)
-		return -1;
+		return -EINVAL;
 
 	for (i = 0; i < num_levels; i++) {
 		if (!is_used_by_scaling(cpu_clk[0]->fmax[i] / 1000))
@@ -673,10 +697,10 @@ ssize_t store_UV_mV_table(struct cpufreq_policy *policy, char *buf,
 			cpu_clk[j]->vdd_class->vdd_uv[i] = val * 1000;
 
 		/* Non-standard sysfs interface: advance buf */
-		cnt = strlen(size_cur);
-		buf += cnt + 1;
+		ret = sscanf(buf, "%s", size_cur);
+		buf += strlen(size_cur) + 1;
 	}
-	pr_warn("faux123: user voltage table modified!\n");
+	pr_info("krait: regulator: user voltage table modified!\n");
 
 	return ret;
 }
@@ -686,10 +710,10 @@ static int clock_krait_8974_driver_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct clk *c;
-	int speed, pvs, pvs_ver, config_ver, rows, cpu;
-	unsigned long *freq, cur_rate, aux_rate;
-	int *uv, *ua;
-	u32 *dscr, vco_mask, config_val;
+	int speed, pvs, svs_pvs, pvs_ver, config_ver, rows, cpu;
+	unsigned long *freq = 0, cur_rate, aux_rate;
+	int *uv = 0, *ua = 0;
+	u32 *dscr = 0, vco_mask, config_val;
 	int ret;
 
 	vdd_l2.regulator[0] = devm_regulator_get(dev, "l2-dig");
@@ -776,7 +800,7 @@ static int clock_krait_8974_driver_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "PVS config version: %d\n", config_ver);
 	}
 
-	get_krait_bin_format_b(pdev, &speed, &pvs, &pvs_ver);
+	get_krait_bin_format_b(pdev, &speed, &pvs, &svs_pvs, &pvs_ver);
 	snprintf(table_name, ARRAY_SIZE(table_name),
 			"qcom,speed%d-pvs%d-bin-v%d", speed, pvs, pvs_ver);
 
@@ -907,3 +931,4 @@ module_exit(clock_krait_8974_exit);
 
 MODULE_DESCRIPTION("Krait CPU clock driver for 8974");
 MODULE_LICENSE("GPL v2");
+
