@@ -111,3 +111,4 @@ MODULE_AUTHOR("Park Ju Hyung <qkrwngud825@gmail.com>");
 MODULE_DESCRIPTION("'adreno_idler - A powersaver for Adreno TZ"
 	"Control idle algorithm for Adreno GPU series");
 MODULE_LICENSE("GPL");
+
