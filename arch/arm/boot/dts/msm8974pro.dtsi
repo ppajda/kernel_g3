@@ -1604,7 +1604,7 @@
 	qcom,chipid = <0x03030002>;
 	qcom,msm-bus,num-cases = <15>;
 	qcom,bus-control;
-	qcom,initial-pwrlevel = <7>;
+	qcom,initial-pwrlevel = <4>;
 
 	/* Updated bus bandwidth requirements */
 	qcom,msm-bus,vectors-KBps =
@@ -1819,6 +1819,6 @@
 &sdhc_1 {
 	reg = <0xf9824900 0x1a0>, <0xf9824000 0x800>;
 
-	qcom,clk-rates = <400000 20000000 25000000 50000000 100000000 192000000 384000000>;
+	qcom,clk-rates = <400000 20000000 25000000 50000000 100000000 200000000 400000000>;
 	qcom,bus-speed-mode = "HS400_1p8v", "HS200_1p8v", "DDR_1p8v";
 };
