@@ -32,7 +32,7 @@
 // #define DISABLE_POWER_MANAGEMENT
 
 // AP: use msm8974 lcd status notifier
-//#define USE_LCD_NOTIFIER
+#define USE_LCD_NOTIFIER
 
 #include <linux/cpu.h>
 #ifdef USE_LCD_NOTIFIER
@@ -60,7 +60,7 @@
 #include <linux/tick.h>
 #include <linux/version.h>
 
-#define ENABLE_SNAP_THERMAL_SUPPORT		// ZZ: Snapdragon temperature tripping support
+// #define ENABLE_SNAP_THERMAL_SUPPORT		// ZZ: Snapdragon temperature tripping support
 
 #if defined(CONFIG_THERMAL_TSENS8974) || defined(CONFIG_THERMAL_TSENS8960) && defined(ENABLE_SNAP_THERMAL_SUPPORT) // ZZ: Snapdragon temperature sensor
 #include <linux/msm_tsens.h>
@@ -76,13 +76,13 @@
 #endif /* ENABLE_INPUTBOOSTER */
 
 // Yank: enable/disable sysfs interface to display current zzmoove version
-#define ZZMOOVE_VERSION "1.0 beta8"
+#define ZZMOOVE_VERSION "develop-24.09.15"
 
 // ZZ: support for 2,4,6 or 8 cores (this will enable/disable hotplug threshold tuneables and limit hotplug max limit tuneable)
 #define MAX_CORES					(4)
 
 // ZZ: enable/disable hotplug support
-//#define ENABLE_HOTPLUGGING
+#define ENABLE_HOTPLUGGING
 
 // ZZ: enable support for native hotplugging on snapdragon platform
 #define SNAP_NATIVE_HOTPLUGGING
@@ -5244,6 +5244,7 @@ static ssize_t store_inputboost_typingbooster_up_threshold(struct kobject *a, st
 	return count;
 }
 
+#ifdef ENABLE_HOTPLUGGING
 // ff: added tuneable inputboost_typingbooster_cores -> possible values: range from 0 disabled to 4, if not set default is 0
 static ssize_t store_inputboost_typingbooster_cores(struct kobject *a, struct attribute *b,
 														   const char *buf, size_t count)
@@ -5270,6 +5271,7 @@ static ssize_t store_inputboost_typingbooster_cores(struct kobject *a, struct at
 	dbs_tuners_ins.inputboost_typingbooster_cores = input;
 	return count;
 }
+#endif /* ENABLE_HOTPLUGGING */
 #endif /* ENABLE_INPUTBOOSTER */
 
 #ifdef ENABLE_MUSIC_LIMITS
@@ -8425,11 +8427,13 @@ static void do_dbs_timer(struct work_struct *work)
 
 #ifdef ENABLE_SNAP_THERMAL_SUPPORT
 	if (dbs_tuners_ins.scaling_trip_temp > 0) {
-		if (!suspend_flag)
+		if (!suspend_flag) {
 			tmu_check_delay = DEF_TMU_CHECK_DELAY;
-		else
+		} else {
 			tmu_check_delay = DEF_TMU_CHECK_DELAY_SLEEP;
-		schedule_delayed_work(&work_tmu_check, msecs_to_jiffies(tmu_check_delay));
+			if (cpu == 0)								// ZZ: only start temp reading work if we are on core 0 to avoid re-scheduling on every gov reload during hotplugging
+				schedule_delayed_work(&work_tmu_check, msecs_to_jiffies(tmu_check_delay));
+		}
 	} else {
 		tt_reset();
 	}
@@ -8944,6 +8948,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		    if (!policy->cpu && dbs_tuners_ins.inputboost_cycles)
 			input_unregister_handler(&interactive_input_handler);
 #endif /* ENABLE_INPUTBOOST */
+#ifdef ENABLE_SNAP_THERMAL_SUPPORT
+		    cancel_delayed_work(&work_tmu_check);				// ZZ: cancel cpu temperature reading when leaving the governor
+#endif /* ENABLE_SNAP_THERMAL_SUPPORT */
 #if (defined(CONFIG_HAS_EARLYSUSPEND) || defined(CONFIG_POWERSUSPEND) && !defined(DISABLE_POWER_MANAGEMENT)) || defined(USE_LCD_NOTIFIER)
 		    dbs_tuners_ins.disable_sleep_mode = DEF_DISABLE_SLEEP_MODE;
 #endif /* (defined(CONFIG_HAS_EARLYSUSPEND)... */
@@ -8961,7 +8968,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		   &dbs_attr_group);
 #if defined(CONFIG_HAS_EARLYSUSPEND) && !defined(USE_LCD_NOTIFIER) && !defined(DISABLE_POWER_MANAGEMENT)
 		unregister_early_suspend(&_powersave_early_suspend);
-#elif defined(CONFIG_POWERSUSPEND) && !defined(USE_LCD_NOTIFIER) && !defined(DISABLE_POWER_MANAGEMENT)
+#elif defined(CONFIG_POWERSUSPEND) && !defined(USE_LCD_NOTIFIER) && !defined(DISABLE_POWER_MANAGEMENT) || defined(CONFIG_POWERSUSPEND) && defined(USE_LCD_NOTIFIER) && !defined(DISABLE_POWER_MANAGEMENT)
 		if (cpu == 0)
 		    unregister_power_suspend(&powersave_powersuspend);
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND)... */
@@ -9138,3 +9145,4 @@ fs_initcall(cpufreq_gov_dbs_init);
 module_init(cpufreq_gov_dbs_init);
 #endif /* CONFIG_CPU_FREQ_DEFAULT_GOV_ZZMOOVE */
 module_exit(cpufreq_gov_dbs_exit);
+
