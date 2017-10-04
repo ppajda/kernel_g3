@@ -19,7 +19,6 @@
 #include <linux/io.h>
 #include <linux/ftrace.h>
 #include <linux/msm_adreno_devfreq.h>
-#include <linux/powersuspend.h>
 #include <mach/scm.h>
 #include "governor.h"
 
@@ -84,15 +83,15 @@ static void _update_cutoff(struct devfreq_msm_adreno_tz_data *priv,
 	}
 }
 
+#ifdef CONFIG_ADRENO_IDLER
+extern int adreno_idler(struct devfreq_dev_status stats, struct devfreq *devfreq,
+		 unsigned long *freq);
+#endif
+
 #ifdef CONFIG_SIMPLE_GPU_ALGORITHM
 extern int simple_gpu_active;
 extern int simple_gpu_algorithm(int level,
 				struct devfreq_msm_adreno_tz_data *priv);
-#endif
-
-#ifdef CONFIG_ADRENO_IDLER
-extern int adreno_idler(struct devfreq_dev_status stats, struct devfreq *devfreq,
-		 unsigned long *freq);
 #endif
 
 static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
@@ -388,26 +387,8 @@ static struct devfreq_governor msm_adreno_tz = {
 	.event_handler = tz_handler,
 };
 
-static void tz_early_suspend(struct power_suspend *handler)
-{
-	power_suspended = true;
-	return;
-}
-
-static void tz_late_resume(struct power_suspend *handler)
-{
-	power_suspended = false;
-	return;
-}
-
-static struct power_suspend tz_power_suspend = {
-	.suspend = tz_early_suspend,
-	.resume = tz_late_resume,
-};
-
 static int __init msm_adreno_tz_init(void)
 {
-	register_power_suspend(&tz_power_suspend);
 	return devfreq_add_governor(&msm_adreno_tz);
 }
 subsys_initcall(msm_adreno_tz_init);

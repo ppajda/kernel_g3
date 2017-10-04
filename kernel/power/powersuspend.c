@@ -20,7 +20,7 @@
  *
  *  v1.7 - do only run state change if change actually requests a new state
  *
- *  v1.7.1 - Add auto-sleep and hybrid modes back
+ * v1.7.1 - Add autosleep and hybrid modes back
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -142,6 +142,8 @@ static void power_resume(struct work_struct *work)
 abort_resume:
 	mutex_unlock(&power_suspend_lock);
 }
+
+bool power_suspended = false;
 
 void set_power_suspend_state(int new_state)
 {
@@ -332,4 +334,5 @@ MODULE_AUTHOR("Paul Reioux <reioux@gmail.com> / Jean-Pierre Rasquin <yank555.lu@
 MODULE_DESCRIPTION("power_suspend - A replacement kernel PM driver for"
         "Android's deprecated early_suspend/late_resume PM driver!");
 MODULE_LICENSE("GPL v2");
+
 
