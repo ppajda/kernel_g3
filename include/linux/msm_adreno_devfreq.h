@@ -44,4 +44,9 @@ struct devfreq_msm_adreno_tz_data {
 	unsigned int device_id;
 };
 
+struct msm_adreno_extended_profile {
+	struct devfreq_msm_adreno_tz_data *private_data;
+	struct devfreq_dev_profile profile;
+};
+
 #endif
