@@ -92,7 +92,6 @@ MODULE_PARM_DESC(high_perf_mode, "enable/disable class AB config for hph");
 #ifdef CONFIG_INPUT_MAX14688
 /*                                                         */
 static struct snd_soc_codec *tomtom_codec_priv = NULL;
-static bool aux_pull_down = false;
 #endif
 
 static struct afe_param_slimbus_slave_port_cfg tomtom_slimbus_slave_port_cfg = {
@@ -8678,48 +8677,6 @@ static int tomtom_cpe_initialize(struct snd_soc_codec *codec)
 
 	return 0;
 }
-
-#ifdef CONFIG_INPUT_MAX14688
-/*                                                         */
-void tomtom_dec5_vol_mute(void)
-{
-	u16 tx_vol_ctl_reg;
-	s8 decimator = 5; /* DEC5 */
-
-	if(tomtom_codec_priv == NULL){
-		pr_debug("%s: codec not initialized, return.\n", __func__);
-		return;
-	}
-	
-	tx_vol_ctl_reg = TOMTOM_A_CDC_TX1_VOL_CTL_CFG + 8 * (decimator - 1);
-	pr_info("%s: tx_vol_ctl_reg(%#x):0x01\n", __func__, tx_vol_ctl_reg);
-	snd_soc_update_bits(tomtom_codec_priv, tx_vol_ctl_reg, 0x01, 0x01);
-}
-/*                                                                    */
-void tomtom_set_auto_pull_down(bool enable)
-{
-	u16 auto_pd_l_ctl_reg, auto_pd_r_ctl_reg;
-
-	if(tomtom_codec_priv == NULL){
-		pr_debug("%s: codec not initialized yet, return.\n", __func__);
-		aux_pull_down = true;
-		return;
-	}
-	auto_pd_l_ctl_reg = TOMTOM_A_RX_HPH_L_TEST; // 0x1af
-	auto_pd_r_ctl_reg = TOMTOM_A_RX_HPH_R_TEST; // 0x1b5
-
-	pr_debug("%s: HP L/R PA auto pull down for aux noise enable(%d)\n", __func__, enable);
-	if(enable){
-		snd_soc_update_bits(tomtom_codec_priv, auto_pd_l_ctl_reg, 0x08, 0x08);
-		snd_soc_update_bits(tomtom_codec_priv, auto_pd_r_ctl_reg, 0x08, 0x08);
-	}else{
-		snd_soc_update_bits(tomtom_codec_priv, auto_pd_l_ctl_reg, 0x08, 0x00);
-		snd_soc_update_bits(tomtom_codec_priv, auto_pd_r_ctl_reg, 0x08, 0x00);
-	}
-}
-EXPORT_SYMBOL(tomtom_dec5_vol_mute);
-EXPORT_SYMBOL(tomtom_set_auto_pull_down);
-#endif
 
 #ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
 struct snd_soc_codec *fauxsound_codec_ptr;

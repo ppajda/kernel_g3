@@ -227,6 +227,7 @@ enum {
 #define MDP_MEMORY_ID_TYPE_FB		0x00001000
 #define MDP_BWC_EN			0x00000400
 #define MDP_DECIMATION_EN		0x00000800
+#define MDP_SMP_FORCE_ALLOC             0x00200000
 #define MDP_TRANSP_NOP 0xffffffff
 #define MDP_ALPHA_NOP 0xff
 
@@ -1056,6 +1057,7 @@ struct mdp_display_commit {
 	struct fb_var_screeninfo var;
 	struct mdp_rect l_roi;
 	struct mdp_rect r_roi;
+	struct mdp_rect roi;
 };
 
 /**

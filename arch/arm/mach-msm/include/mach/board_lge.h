@@ -5,11 +5,16 @@ typedef enum {
 	HW_REV_EVB1 = 0,
 	HW_REV_EVB2,
 	HW_REV_A,
+#ifdef CONFIG_MACH_MSM8974_G3_GLOBAL_COM
+	HW_REV_A1,
+#endif
 	HW_REV_B,
 	HW_REV_C,
 	HW_REV_D,
 	HW_REV_E,
+#ifndef CONFIG_MACH_MSM8974_G3_GLOBAL_COM
 	HW_REV_F,
+#endif
 	HW_REV_G,
 	HW_REV_H,
 	HW_REV_1_0,

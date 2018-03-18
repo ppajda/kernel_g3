@@ -1,3 +1,4 @@
+obj-$(CONFIG_MACH_MSM8974_G3) += 8974ac-g3/
 obj-$(CONFIG_MACH_APQ8084_LGPC9) += board-8084-lgpc9.o board-8084-lgpc9-gpiomux.o
 obj-$(CONFIG_MACH_APQ8084_T6_LGU) += board-8084-t6-kr.o board-8084-t6-kr-gpiomux.o
 obj-$(CONFIG_MACH_APQ8084_T6_KT) += board-8084-t6-kr.o board-8084-t6-kr-gpiomux.o
@@ -10,7 +11,6 @@ obj-$(CONFIG_LGE_BOOTLOADER_LOG) += lge_bootloader_log.o
 obj-$(CONFIG_LGE_HANDLE_PANIC) += lge_handle_panic.o
 obj-$(CONFIG_LGE_BOOTLOADER_TIME_CHECKER) += lge_bootloader_time_checker.o
 obj-$(CONFIG_LGE_ECO_MODE) += lge_kernel_driver.o
-obj-$(CONFIG_LGE_BLUETOOTH) += board-8084-bt-rfkill.o
 obj-$(CONFIG_LGE_QFPROM_INTERFACE) += lge_qfprom_access.o
 obj-$(CONFIG_LGE_PM) += lge_charging_scenario.o
 obj-$(CONFIG_LGE_PM) += lge_gpio_debug.o

@@ -7,6 +7,8 @@ dtb-$(CONFIG_MACH_APQ8084_T6_KT)         += apq8084-t6-kr.dtb
 dtb-$(CONFIG_MACH_APQ8084_T6_KT)         += apq8084-v1-1-t6-kr.dtb
 dtb-$(CONFIG_MACH_APQ8084_T6_SKT)        += apq8084-t6-kr.dtb
 dtb-$(CONFIG_MACH_APQ8084_T6_SKT)        += apq8084-v1-1-t6-kr.dtb
+dtb-$(CONFIG_MACH_MSM8974_G3_GLOBAL_COM) += msm8974pro-g3-global_com.dtb
+dtb-$(CONFIG_MACH_MSM8974_G3_GLOBAL_COM) += msm8974pro-ac-g3-global_com.dtb
 
 DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE_NAMES))
 ifneq ($(DTB_NAMES),)

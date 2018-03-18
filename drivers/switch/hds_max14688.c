@@ -696,7 +696,6 @@ static void max14688_det_work (struct work_struct *work)
 
 	/* 2014-10-06, mint.choi@lge, HP L/R auto pull down set for aux noise */
 	if((!strcmp(__current_jack_name(me),"ACC/AUX" ))&&(!auto_pd_enabled)){
-		tomtom_set_auto_pull_down(true);
 		auto_pd_enabled = true;
 	}
 	goto out;
@@ -774,11 +773,8 @@ static void max14688_irq_jack_removed (struct max14688 *me)
 	log_dbg("jack %s removed\n", __current_jack_name(me));
 	me->report_jack(me->dev, __current_jack(me), JACK_OUT_VALUE);
 
-	/* 2014-06-23, jongyeol.yang@lge, WA for headset mic noise */
-	tomtom_dec5_vol_mute();
 	/* 2014-10-06, mint.choi@lge, HP L/R auto pull down set for aux noise */
 	if(auto_pd_enabled){
-		tomtom_set_auto_pull_down(false);
 		auto_pd_enabled = false;
 	}
 

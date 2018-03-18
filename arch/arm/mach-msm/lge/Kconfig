@@ -3,6 +3,8 @@ config MACH_LGE
 
 menu "LGE Board Selection"
 
+source "arch/arm/mach-msm/lge/8974ac-g3/Kconfig"
+
 config MACH_APQ8084_LGPC9
 	depends on ARCH_APQ8084
 	select MACH_LGE
